@@ -1,0 +1,36 @@
+data_100.txt
+16526
+real    0m24.769s
+data_10.txt
+5375
+real    0m0.010s
+data_15.txt
+4281
+real    0m0.194s
+data_200.txt
+35171
+real    0m37.063s
+data_20.txt
+6212
+real    0m3.291s
+data_300.txt
+47789
+real    1m7.859s
+data_30.txt
+7656
+real    0m16.455s
+data_40.txt
+8323
+real    0m28.084s
+data_50.txt
+8625
+real    0m28.338s
+data_5.txt
+1950
+real    0m0.003s
+data_60.txt
+11088
+real    0m26.313s
+data_70.txt
+14100
+real    0m24.122s
