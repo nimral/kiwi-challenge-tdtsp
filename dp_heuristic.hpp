@@ -37,7 +37,8 @@ struct PartialTour {
     cost_t cost;
 
     PartialTour() {}
-    PartialTour(cid_t k)
+    PartialTour(cid_t k) :
+        cost(0)
     {
         tour.push_back(k);
         // S.set(k); we do not want to have start in S
@@ -62,9 +63,9 @@ struct PartialTour {
 void keep_H_best(std::vector<PartialTour> & new_partials, unsigned int H)
 {
     if (new_partials.size() > H) {
-        std::partial_sort(
+        std::nth_element(
             new_partials.begin(),
-            new_partials.begin() + H,
+            new_partials.begin() + H - 1,
             new_partials.end(),
             [](const PartialTour & a, const PartialTour & b) {
                 return a.cost < b.cost;
@@ -92,13 +93,13 @@ void keep_H_best(std::vector<PartialTour> & new_partials,
 
 output_t dp_heuristic(int n,
                       const cid_t & start,
-                      const costs_table_t & costs)
+                      const costs_table_t & costs,
+                      unsigned int H)
 {
     std::vector<PartialTour> partials(1, PartialTour(start));
     std::vector<PartialTour> new_partials;
 
-    unsigned int H = 1000;
-    unsigned int max_partials_size = H;
+    unsigned int max_partials_size = H + H/2;
 
     for (cid_t t = 0; t < n; t++) {
         // step 2
@@ -107,7 +108,7 @@ output_t dp_heuristic(int n,
         // worst retained partial tour in current stage so far, store S, k, and
         // cost values of the new partial tour (?) until the Set and Cost
         // arrays are filled or all possible partial tours are obtained."
-        cost_t Hth_worst_so_far = 0;
+        cost_t Hth_worst_cost_upper_bound = 0;
         for (const auto & pt : partials) {
             for (cid_t to = 0; to < n; to++) {
                 if (t == n-1 && to != start) {
@@ -117,16 +118,17 @@ output_t dp_heuristic(int n,
                 }
                 cost_t cost = costs[t][pt.k()][to];
                 if (cost >= 0 && !pt.S[to]) {
-                    // here we are max H * (n - t) times
 
-                    // TODO verify this heuristic
+                    // a little optimization -- skip pts definitely worse than
+                    // than the Hth best pt so far
                     if (new_partials.size() < H) {
-                        if (Hth_worst_so_far < pt.cost + cost) {
-                            Hth_worst_so_far = pt.cost + cost;
+                        if (Hth_worst_cost_upper_bound < pt.cost + cost) {
+                            Hth_worst_cost_upper_bound = pt.cost + cost;
                         }
-                    } else if (Hth_worst_so_far < pt.cost + cost) {
+                    } else if (Hth_worst_cost_upper_bound < pt.cost + cost) {
                         continue;
                     }
+
                     PartialTour new_pt = pt.prolonged(to, cost);
 
                     // keep only the best partial tour for each (k, S) pair
@@ -134,7 +136,9 @@ output_t dp_heuristic(int n,
                     auto key = std::make_pair(new_pt.k(), new_pt.S);
                     auto it = k_S2idx.find(key);
                     if (it != k_S2idx.end()) {
-                        new_partials[it->second] = new_pt;
+                        if (new_partials[it->second].cost >= new_pt.cost) {
+                            new_partials[it->second] = new_pt;
+                        }
                     } else {
                         new_partials.emplace_back(new_pt);
                         k_S2idx[key] = new_partials.size() - 1;
@@ -152,20 +156,18 @@ output_t dp_heuristic(int n,
         std::swap(partials, new_partials);
     }
 
-    unsigned int best = 0;
-    cost_t min_cost = 300 * 65535 * 20;
-    for (unsigned int i = 0; i < partials.size(); i++) {
-        if (partials[i].cost < min_cost) {
-            best = i;
-            min_cost = partials[i].cost;
-        }
+    std::vector<IOArc> output_arcs;
+    if (partials.empty()) {
+        return output_arcs;
     }
 
-    std::vector<IOArc> output_arcs;
+    // there can be only one partial tour for S = {0 .. n-1}, k = start
+    const PartialTour & best_pt = partials[0];
+
     output_arcs.reserve(n);
     for (cid_t t = 0; t < n; t++) {
-        cid_t from = partials[best].tour[t];
-        cid_t to = partials[best].tour[t+1];
+        cid_t from = best_pt.tour[t];
+        cid_t to = best_pt.tour[t+1];
         output_arcs.emplace_back(
             IOArc(t, from, to, costs[t][from][to])
         );

@@ -16,6 +16,7 @@
 
 
 #define MAX_N 300
+#define NO_ARC -1
 
 typedef long cost_t;
 typedef unsigned short cid_t;  // city id or day number (the same range)
@@ -94,18 +95,24 @@ void init_from_input(cid_t & start, Cities & cities, costs_table_t & costs)
 
     // costs[day][from][to] -> cost_t 
     costs = costs_table_t(
-        n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, -1)));
+        n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, NO_ARC))
+    );
 
     for (const auto & a : input_arcs) {
         cost_t & cost = costs[a.day][a.from][a.to];
-        if (cost < 0 || cost > a.price) {
-            cost = a.price;
+        if (cost == NO_ARC || cost > a.price) {
+            // visits to start allowed only in the last day
+            if (a.day == n-1 || a.to != start) {
+                cost = a.price;
+            }
         }
     }
 }
 
 
-void print_output(output_t output_arcs, const Cities & cities)
+void print_output(output_t output_arcs,
+                  const Cities & cities,
+                  bool just_cost=false)
 {
     cost_t cost = 0;
     bool sorted = true;
@@ -115,6 +122,10 @@ void print_output(output_t output_arcs, const Cities & cities)
         }
         cost += output_arcs[i].price;
     }
+    std::cout << cost << std::endl;
+    if (just_cost) {
+        return;
+    }
     if (!sorted) {
         std::sort(
             output_arcs.begin(),
@@ -122,12 +133,37 @@ void print_output(output_t output_arcs, const Cities & cities)
             [](const IOArc & a, const IOArc & b) { return a.day < b.day; }
         );
     }
-    std::cout << cost << std::endl;
     for (const auto & arc : output_arcs) {
         std::cout << cities.idx2code(arc.from) << " "
                   << cities.idx2code(arc.to) << " "
                   << arc.day << " " 
                   << arc.price << std::endl;
+    }
+}
+
+
+// iteratively remove arcs which cannot be used to reach start
+void prune_costs(cid_t n, cid_t start, costs_table_t & costs)
+{
+    std::vector<std::vector<char>> can_reach(n+1, std::vector<char>(n, 0));
+    can_reach[n][start] = 1;
+    bool not_all_can = true;
+    for (cid_t t = n; t >= 1 && not_all_can; t--) {
+        int pruned = 0;
+        for (cid_t from = 0; from < n && not_all_can; from++) {
+            for (cid_t to = 0; to < n; to++) {
+                if (can_reach[t][to] && costs[t-1][from][to] > NO_ARC) {
+                    can_reach[t-1][from] = 1;
+                }
+            }
+            if (!can_reach[t-1][from]) {
+                pruned++;
+                for (cid_t to = 0; to < n; to++) {
+                    costs[t-1][from][to] = NO_ARC;
+                }
+                not_all_can = true;
+            }
+        }
     }
 }
 

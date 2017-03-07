@@ -12,7 +12,13 @@ int main()
     init_from_input(start, cities, costs);
     n = cities.size();
 
-    output_t output_arcs = dp_heuristic(n, start, costs);
+    unsigned int H;
+    if (n <= 30) {
+        H = 60000;  // u-pl0, n = 30, H = 60000: 18 s
+    } else {
+        H = 80000000 / (n * n);
+    }
+    output_t output_arcs = dp_heuristic(n, start, costs, H);
 
     print_output(output_arcs, cities);
 }
