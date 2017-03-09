@@ -37,6 +37,6 @@ int main()
         }
     }
 
-    print_output(output_arcs[best_idx], best_cost, cities);
+    print_output(output_arcs[best_idx], best_cost, cities, n, best_idx == 1);
 }
 // vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 shiftround

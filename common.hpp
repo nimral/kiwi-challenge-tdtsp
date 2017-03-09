@@ -132,8 +132,16 @@ cost_t final_cost(const output_t & arcs)
 void print_output(output_t & output_arcs,
                   const cost_t cost,
                   const Cities & cities,
+                  const id_t n,
+                  bool reversed=false,
                   bool just_cost=false)
 {
+    if (reversed) {
+        for (auto & arc : output_arcs) {
+            std::swap(arc.from, arc.to);
+            arc.day = n - arc.day - 1;
+        }
+    }
     bool sorted = true;
     for (unsigned int i = 0; i < output_arcs.size(); i++) {
         if (output_arcs[i].day != i) {
