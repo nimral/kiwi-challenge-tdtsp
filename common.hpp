@@ -68,7 +68,7 @@ struct IOArc {
 typedef std::vector<IOArc> output_t;
 
 
-void init_from_input(cid_t & start, Cities & cities, costs_table_t & costs)
+void init_from_input(cid_t & start, Cities & cities, std::vector<costs_table_t> & costs)
 {
     std::string start_str;
     std::cin >> start_str;
@@ -94,33 +94,51 @@ void init_from_input(cid_t & start, Cities & cities, costs_table_t & costs)
     int n = cities.size();
 
     // costs[day][from][to] -> cost_t 
-    costs = costs_table_t(
-        n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, NO_ARC))
-    );
+    for (std::size_t i = 0; i < costs.size(); ++i) {
+        costs[i] = costs_table_t(
+            n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, NO_ARC))
+        );
+    }
 
     for (const auto & a : input_arcs) {
-        cost_t & cost = costs[a.day][a.from][a.to];
-        if (cost == NO_ARC || cost > a.price) {
+        cost_t & costf = costs[0][a.day][a.from][a.to];
+        cost_t & costb = costs[1][n-a.day-1][a.to][a.from];
+        if (costf == NO_ARC || costf > a.price) {
             // visits to start allowed only in the last day
             if (a.day == n-1 || a.to != start) {
-                cost = a.price;
+                costf = a.price;
+            }
+        }
+        if (costb == NO_ARC || costb > a.price) {
+            // visits to start allowed only in the last day
+            if (a.day == 0 || a.from != start) {
+                costb = a.price;
             }
         }
     }
 }
 
 
-void print_output(output_t output_arcs,
+cost_t final_cost(const output_t & arcs)
+{
+    cost_t cost = 0;
+    for (const auto & arc : arcs) {
+        cost += arc.price;
+    }
+    return cost;
+}
+
+
+void print_output(output_t & output_arcs,
+                  const cost_t cost,
                   const Cities & cities,
                   bool just_cost=false)
 {
-    cost_t cost = 0;
     bool sorted = true;
     for (unsigned int i = 0; i < output_arcs.size(); i++) {
         if (output_arcs[i].day != i) {
             sorted = false;
         }
-        cost += output_arcs[i].price;
     }
     std::cout << cost << std::endl;
     if (just_cost) {
