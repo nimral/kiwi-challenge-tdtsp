@@ -261,7 +261,7 @@ void dp_heuristic(int n,
         cid_t from = best_pt.tour[t];
         cid_t to = best_pt.tour[t+1];
         output_arcs.emplace_back(
-            IOArc(t, from, to, costs[t][from][to])
+            IOArc(from, to, t, costs[t][from][to])
         );
     }
 }
