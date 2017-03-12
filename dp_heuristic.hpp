@@ -32,7 +32,35 @@ typedef std::pair<cid_t, std::bitset<MAX_N>> umkey_t;
 
 
 struct PartialTour {
-    std::vector<cid_t> tour;
+
+    // The PartialTourPath contains a city index 'k' and a shared pointer
+    // to a PartialTourPath which it prolongs. Unlike std::vector
+    // representation, PartialTourPath copy construction has O(1) complexity.
+    // PartialTourPath is basically an intrusive list linked by shared pointers.
+    struct PartialTourPath {
+      cid_t k;
+      std::shared_ptr<PartialTourPath> prev_ks;
+
+      PartialTourPath(cid_t k, std::shared_ptr<PartialTourPath> ptr = {})
+        : k{k},
+          prev_ks{std::move(ptr)}
+      { }
+
+      std::vector<cid_t> as_vector() const
+      {
+        std::vector<cid_t> tour{k};
+        auto node = prev_ks;
+        while (node) {
+          tour.emplace_back(node->k);
+          node = node->prev_ks;
+        }
+        std::reverse(tour.begin(), tour.end());
+        return tour;
+      }
+    };
+
+    std::shared_ptr<PartialTourPath> tour;
+
     std::bitset<MAX_N> S;  // set of all the nodes visited by this pt
     cost_t cost;
 
@@ -42,25 +70,24 @@ struct PartialTour {
 
     PartialTour() = default;
     PartialTour(cid_t k) :
+        tour{std::make_shared<PartialTourPath>(k)},
         cost(0)
     {
-        tour.push_back(k);
         // S.set(k); we do not want to have start in S
     }
 
     cid_t k() const
     {
-        return tour.back();
+        return tour->k;
     }
 
-    PartialTour prolonged(cid_t idx, cost_t cost) const
+    PartialTour prolonged(cid_t idx, cost_t idx_cost) const
     {
-        PartialTour pt(*this);
-        // only reserve the space for the appended element
-        pt.tour.reserve(pt.tour.size() + 1);
-        pt.tour.push_back(idx);
+        PartialTour pt;
+        pt.tour = std::make_shared<PartialTourPath>(idx, tour);
+        pt.S = S;
         pt.S.set(idx);
-        pt.cost += cost;
+        pt.cost = cost + idx_cost;
         return pt;
     }
 };
@@ -258,12 +285,12 @@ void dp_heuristic(int n,
     }
 
     // there can be only one partial tour for S = {0 .. n-1}, k = start
-    const PartialTour & best_pt = keeper.partials[0];
+    const std::vector<cid_t> & best_tour = keeper.partials[0].tour->as_vector();
 
     output_arcs.reserve(n);
     for (cid_t t = 0; t < n; t++) {
-        cid_t from = best_pt.tour[t];
-        cid_t to = best_pt.tour[t+1];
+        cid_t from = best_tour[t];
+        cid_t to = best_tour[t+1];
         output_arcs.emplace_back(
             IOArc(from, to, t, costs[t][from][to])
         );
