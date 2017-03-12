@@ -40,7 +40,7 @@ struct PartialTour {
     // (well it feels kind of hackish...)
     unsigned int heap_idx;
 
-    PartialTour() {}
+    PartialTour() = default;
     PartialTour(cid_t k) :
         cost(0)
     {

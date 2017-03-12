@@ -57,7 +57,7 @@ public:
 struct IOArc {
     cid_t from, to, day;
     cost_t price;
-    IOArc() {}
+    IOArc() = default;
     IOArc(cid_t from, cid_t to, cid_t day, cost_t price) :
         from(from),
         to(to),
