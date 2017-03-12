@@ -15,8 +15,8 @@
 #include<algorithm>
 
 
-#define MAX_N 300
-#define NO_ARC -1
+constexpr int MAX_N = 300;
+constexpr int NO_ARC = -1;
 
 typedef long cost_t;
 typedef unsigned short cid_t;  // city id or day number (the same range)
