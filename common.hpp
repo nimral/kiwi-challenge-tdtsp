@@ -3,7 +3,7 @@
 
 #include<cstdio>
 #include<vector>
-#include<map>
+#include<unordered_map>
 #include<set>
 #include<iostream>
 #include<iomanip>
@@ -26,19 +26,19 @@ typedef std::vector<std::vector<std::vector<cost_t>>> costs_table_t;
 // Class storing city code to index mapping
 class Cities {
 
-    std::map<std::string, cid_t> code2idx_map;
-    std::map<cid_t, std::string> idx2code_map;
+    std::unordered_map<std::string, cid_t> code2idx_map;
+    std::unordered_map<cid_t, std::string> idx2code_map;
     
 public:
-    cid_t code2idx(std::string & code)
+    cid_t code2idx(std::string code)
     {
         auto it = code2idx_map.find(code);
         if (it == code2idx_map.end()) {
             cid_t id = code2idx_map.size();
-            code2idx_map[code] = id;
-            idx2code_map[id] = code;
+            it = code2idx_map.emplace(code, id).first;
+            idx2code_map[id] = std::move(code);
         }
-        return code2idx_map[code];
+        return it->second;
     }
 
     std::string idx2code(cid_t idx) const {
@@ -72,7 +72,7 @@ void init_from_input(cid_t & start, Cities & cities, std::vector<costs_table_t> 
 {
     std::string start_str;
     std::cin >> start_str;
-    start = cities.code2idx(start_str);
+    start = cities.code2idx(std::move(start_str));
 
     std::vector<IOArc> input_arcs;
     std::string line;
@@ -80,15 +80,15 @@ void init_from_input(cid_t & start, Cities & cities, std::vector<costs_table_t> 
 
     // save all the lines to input_arcs
     while (std::getline(std::cin, line)) {
-        std::stringstream sts(line);
+        std::stringstream sts(std::move(line));
 
         std::string from_str, to_str;
         IOArc a;
         sts >> from_str >> to_str >> a.day >> a.price;
-        a.from = cities.code2idx(from_str);
-        a.to = cities.code2idx(to_str);
+        a.from = cities.code2idx(std::move(from_str));
+        a.to = cities.code2idx(std::move(to_str));
 
-        input_arcs.emplace_back(a);
+        input_arcs.emplace_back(std::move(a));
     }
 
     int n = cities.size();
