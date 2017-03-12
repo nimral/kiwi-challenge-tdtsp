@@ -146,7 +146,7 @@ struct Keeper {
     void heap_insert(HeapElem && elem)
     {
         unsigned int hidx = heap.size();
-        heap.emplace_back(elem);
+        heap.emplace_back(std::move(elem));
         heap_update_hidx(hidx);
         while (hidx > 1 && heap[hidx].cost > heap[hidx / 2].cost) {
             heap_swap(hidx, hidx / 2);
@@ -185,29 +185,30 @@ struct Keeper {
     }
 
     // add one pt to the Keeper if it is good enough
-    void add(const PartialTour && pt) {
+    void add(PartialTour && pt) {
         // is pt with this (k, S) pair stored already?
         auto key = std::make_pair(pt.k(), pt.S);
         auto it = k_S2idx.find(key);
+        auto pt_cost = pt.cost;
         if (it != k_S2idx.end()) {
             PartialTour & found = partials[it->second];
-            if (found.cost > pt.cost) {
+            if (found.cost > pt_cost) {
                 unsigned int hidx = found.heap_idx;
-                found = pt;
+                found = std::move(pt);
                 found.heap_idx = hidx;
-                heap_decrease_key(hidx, pt.cost);
+                heap_decrease_key(hidx, pt_cost);
             }
         // no stored pt has this (k, S) pair
         } else {
             if (partials.size() < H) {
-                partials.emplace_back(pt);
-                heap_insert(HeapElem{pt.cost, partials.size()-1});
+                partials.emplace_back(std::move(pt));
+                heap_insert(HeapElem{pt_cost, partials.size()-1});
                 k_S2idx[key] = partials.size() - 1;
-            } else if (heap[1].cost > pt.cost) {
-                partials[heap[1].idx] = pt;
+            } else if (heap[1].cost > pt_cost) {
+                partials[heap[1].idx] = std::move(pt);
                 heap_update_hidx(1);
                 k_S2idx[key] = heap[1].idx;
-                heap_decrease_key(1, pt.cost);
+                heap_decrease_key(1, pt_cost);
             }
         }
     }
