@@ -56,6 +56,8 @@ struct PartialTour {
     PartialTour prolonged(cid_t idx, cost_t cost) const
     {
         PartialTour pt(*this);
+        // only reserve the space for the appended element
+        pt.tour.reserve(pt.tour.size() + 1);
         pt.tour.push_back(idx);
         pt.S.set(idx);
         pt.cost += cost;
@@ -94,6 +96,7 @@ struct Keeper {
     Keeper(unsigned int H) : H(H)
     {
         partials.reserve(H);
+        k_S2idx.reserve(MAX_N);
         heap.reserve(H+1);  // 1-indexing for simple child access (i*2, i*2+1)
         heap.push_back(HeapElem{0, 0});
     }
