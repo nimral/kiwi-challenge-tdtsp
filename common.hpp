@@ -14,6 +14,7 @@
 #include<string.h>
 #include<algorithm>
 
+#include "csv.h"
 
 constexpr int MAX_N = 300;
 constexpr int NO_ARC = -1;
@@ -70,23 +71,22 @@ typedef std::vector<IOArc> output_t;
 
 void init_from_input(cid_t & start, Cities & cities, std::vector<costs_table_t> & costs)
 {
-    std::string start_str;
-    std::cin >> start_str;
+    io::CSVReader<4, io::trim_chars<>, io::no_quote_escape<' '>> in("stdin", stdin);
+
+    std::string start_str = in.next_line();
     start = cities.code2idx(std::move(start_str));
 
     std::vector<IOArc> input_arcs;
-    std::string line;
-    std::getline(std::cin, line); // read the rest of the first line
 
+    std::string from; std::string to; int day; int price;
     // save all the lines to input_arcs
-    while (std::getline(std::cin, line)) {
-        std::stringstream sts(std::move(line));
-
-        std::string from_str, to_str;
+    while (in.read_row(from, to, day, price)) {
         IOArc a;
-        sts >> from_str >> to_str >> a.day >> a.price;
-        a.from = cities.code2idx(std::move(from_str));
-        a.to = cities.code2idx(std::move(to_str));
+
+        a.from = cities.code2idx(std::move(from));
+        a.to = cities.code2idx(std::move(to));
+        a.day = day;
+        a.price = price;
 
         input_arcs.emplace_back(std::move(a));
     }
