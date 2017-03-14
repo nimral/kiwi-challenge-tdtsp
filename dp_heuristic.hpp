@@ -252,11 +252,11 @@ struct Keeper {
 };
 
 
-void dp_heuristic(int n,
+void dp_heuristic(const int n,
                   const cid_t start,
                   const costs_table_t & costs,
                   unsigned int H,
-                  std::vector<IOArc> &output_arcs)
+                  std::vector<cid_t> & best_tour)
 {
     Keeper keeper(H);
     keeper.add(PartialTour(start));
@@ -285,16 +285,7 @@ void dp_heuristic(int n,
     }
 
     // there can be only one partial tour for S = {0 .. n-1}, k = start
-    const std::vector<cid_t> & best_tour = keeper.partials[0].tour->as_vector();
-
-    output_arcs.reserve(n);
-    for (cid_t t = 0; t < n; t++) {
-        cid_t from = best_tour[t];
-        cid_t to = best_tour[t+1];
-        output_arcs.emplace_back(
-            IOArc(from, to, t, costs[t][from][to])
-        );
-    }
+    best_tour = keeper.partials[0].tour->as_vector();
 }
 
 #endif
