@@ -78,7 +78,7 @@ void init_from_input(cid_t & start, Cities & cities, std::vector<costs_table_t> 
 
     std::vector<IOArc> input_arcs;
 
-    std::string from; std::string to; int day; int price;
+    std::string from; std::string to; cid_t day{}; cost_t price{};
     // save all the lines to input_arcs
     while (in.read_row(from, to, day, price)) {
         IOArc a;
