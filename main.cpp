@@ -2,6 +2,7 @@
 #include <limits>
 #include <thread>
 #include <chrono>
+#include <algorithm>
 #include "common.hpp"
 #include "dp_heuristic.hpp"
 #include "random_perturbations.hpp"
@@ -15,26 +16,27 @@ int main()
     id_t n;
     cid_t start;
     Cities cities;
-    std::vector<costs_table_t> costs(2);
+    costs_table_t costs;
     init_from_input(start, cities, costs);
     n = cities.size();
 
+    // XXX reevaluate
     unsigned int H;
     if (n <= 30) {
-        H = 60000;  // u-pl0, n = 30, H = 60000: 18 s
+        H = 140000;  // u-pl0, n = 30, H = 60000: 18 s
     } else {
         H = 80000000 / (n * n);
     }
 
-    std::vector<std::vector<cid_t>> tours(costs.size());
+    std::vector<std::vector<cid_t>> tours(CPU_COUNT);
 #pragma omp parallel for
-    for (std::size_t i = 0; i < costs.size(); ++i) {
-        dp_heuristic(n, start, costs[i], H, tours[i]);
+    for (std::size_t i = 0; i < CPU_COUNT; ++i) {
+        dp_heuristic(n, start, costs, H, DIRECTIONS[i], tours[i]);
     }
 
     std::vector<std::thread> threads;
-    std::vector<cost_t> outputs(costs.size(), std::numeric_limits<cost_t>::max());
-    for (std::size_t i = 0; i < costs.size(); ++i) {
+    std::vector<cost_t> outputs(CPU_COUNT, std::numeric_limits<cost_t>::max());
+    for (std::size_t i = 0; i < CPU_COUNT; ++i) {
         const std::size_t ii = i;
         if (tours[ii].empty()) {
             outputs[ii] = std::numeric_limits<cost_t>::max();
@@ -42,7 +44,7 @@ int main()
             threads.emplace_back(
                 std::thread(random_perturbations, n,
                             std::ref(tours[ii]),
-                            std::ref(costs[ii]),
+                            std::ref(costs),
                             std::ref(outputs[ii])));
         }
     }
@@ -62,13 +64,16 @@ int main()
         }
     }
 
-    output_t output_arcs(n);
-    for (cid_t t = 0; t < n; ++t) {
-        cid_t from = tours[best_idx][t];
-        cid_t to = tours[best_idx][t+1];
-        output_arcs[t] = IOArc(from, to, t, costs[best_idx][t][from][to]);
+    if (best_cost != std::numeric_limits<cost_t>::max()) {
+        output_t output_arcs(n);
+        for (cid_t t = 0; t < n; ++t) {
+            cid_t from = tours[best_idx][t];
+            cid_t to = tours[best_idx][t+1];
+            output_arcs[t] = IOArc(from, to, t, costs[t][from][to]);
+        }
+        print_output(output_arcs, best_cost, cities, n);
     }
 
-    print_output(output_arcs, best_cost, cities, n, best_idx == 1);
+    return 0;
 }
 // vim: set tabstop=4 expandtab shiftwidth=4 softtabstop=4 shiftround

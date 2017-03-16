@@ -46,20 +46,27 @@ struct PartialTour {
           prev_ks{std::move(ptr)}
       { }
 
-      std::vector<cid_t> as_vector() const
+      std::vector<cid_t> as_vector(bool forward=true, bool reverse=true) const
       {
-        std::vector<cid_t> tour{k};
+        std::vector<cid_t> tour = forward ?
+            std::vector<cid_t>{k} : std::vector<cid_t>();
         auto node = prev_ks;
         while (node) {
           tour.emplace_back(node->k);
           node = node->prev_ks;
         }
-        std::reverse(tour.begin(), tour.end());
+        if (!forward && !tour.empty()) {
+            tour.pop_back();
+        }
+        if (reverse) {
+            std::reverse(tour.begin(), tour.end());
+        }
         return tour;
       }
     };
 
-    std::shared_ptr<PartialTourPath> tour;
+    std::shared_ptr<PartialTourPath> tour_forw;
+    std::shared_ptr<PartialTourPath> tour_back;
 
     std::bitset<MAX_N> S;  // set of all the nodes visited by this pt
     cost_t cost;
@@ -70,26 +77,39 @@ struct PartialTour {
 
     PartialTour() = default;
     PartialTour(cid_t k) :
-        tour{std::make_shared<PartialTourPath>(k)},
+        tour_forw{std::make_shared<PartialTourPath>(k)},
+        tour_back{std::make_shared<PartialTourPath>(k)},
         cost(0)
     {
         // S.set(k); we do not want to have start in S
     }
 
-    cid_t k() const
+    cid_t k_forw() const
     {
-        return tour->k;
+        return tour_forw->k;
     }
 
-    PartialTour prolonged(cid_t idx, cost_t idx_cost) const
+    cid_t k_back() const
+    {
+        return tour_back->k;
+    }
+
+    PartialTour prolonged(cid_t idx, cost_t idx_cost, bool forward=true) const
     {
         PartialTour pt;
-        pt.tour = std::make_shared<PartialTourPath>(idx, tour);
+        if (forward) {
+            pt.tour_forw = std::make_shared<PartialTourPath>(idx, tour_forw);
+            pt.tour_back = tour_back;
+        } else {
+            pt.tour_forw = tour_forw;
+            pt.tour_back = std::make_shared<PartialTourPath>(idx, tour_back);
+        }
         pt.S = S;
         pt.S.set(idx);
         pt.cost = cost + idx_cost;
         return pt;
     }
+
 };
 
 
@@ -136,7 +156,7 @@ struct Keeper {
         std::cout << std::endl;
     }
 
-    bool heap_is_heap()  // na naa nanana
+    bool heap_is_heap()  // na naa nananana
     {
         for (unsigned int i = 2; i < heap.size(); i++) {
             if (heap[i / 2].cost < heap[i].cost) {
@@ -215,9 +235,9 @@ struct Keeper {
     }
 
     // add one pt to the Keeper if it is good enough
-    void add(PartialTour && pt) {
+    void add(PartialTour && pt, cid_t k) {
         // is pt with this (k, S) pair stored already?
-        auto key = std::make_pair(pt.k(), pt.S);
+        auto key = std::make_pair(k, pt.S);
         auto it = k_S2idx.find(key);
         auto pt_cost = pt.cost;
         if (it != k_S2idx.end()) {
@@ -255,26 +275,43 @@ struct Keeper {
 void dp_heuristic(const int n,
                   const cid_t start,
                   const costs_table_t & costs,
-                  unsigned int H,
+                  const unsigned int H,
+                  const std::vector<int> & directions,
                   std::vector<cid_t> & best_tour)
 {
+    std::size_t f_steps{};
+    std::size_t b_steps{};
     Keeper keeper(H);
-    keeper.add(PartialTour(start));
+    keeper.add(PartialTour(start), start);
     Keeper new_keeper(H);
 
     for (cid_t t = 0; t < n; t++) {
-        for (const auto & pt : keeper.partials) {
-            for (cid_t to = 0; to < n; to++) {
-                if (t == n-1 && to != start) {
-                    // in the last layer only arcs leading to the beginning of
-                    // the tour are relevant
-                    continue;
-                }
-                cost_t cost = costs[t][pt.k()][to];
-                if (cost >= 0 && !pt.S[to]) {
-                    new_keeper.add(pt.prolonged(to, cost));
+        if (directions[t] == FORWARD) {
+            for (const auto & pt : keeper.partials) {
+                for (cid_t to = 0; to < n; to++) {
+                    if (t == n-1 && to != pt.k_back()) {
+                        continue;
+                    }
+                    cost_t cost = costs[f_steps][pt.k_forw()][to];
+                    if (cost >= 0 && (t == n-1 || !pt.S[to])) {
+                        new_keeper.add(pt.prolonged(to, cost), to);
+                    }
                 }
             }
+            f_steps++;
+        } else {
+            for (const auto & pt : keeper.partials) {
+                for (cid_t to = 0; to < n; to++) {
+                    if (t == n-1 && to != pt.k_forw()) {
+                        continue;
+                    }
+                    cost_t cost = costs[n-b_steps-1][to][pt.k_back()];
+                    if (cost >= 0 && (t == n-1 || !pt.S[to])) {
+                        new_keeper.add(pt.prolonged(to, cost, false), to);
+                    }
+                }
+            }
+            b_steps++;
         }
         keeper.clear();
         std::swap(keeper, new_keeper);
@@ -285,7 +322,12 @@ void dp_heuristic(const int n,
     }
 
     // there can be only one partial tour for S = {0 .. n-1}, k = start
-    best_tour = keeper.partials[0].tour->as_vector();
+    auto bt_forw = keeper.partials[0].tour_forw->as_vector();
+    auto bt_back = keeper.partials[0].tour_back->as_vector(false,false);
+
+    best_tour = bt_forw;
+    best_tour.insert(best_tour.end(), bt_back.begin(), bt_back.end());
+    best_tour.push_back(start);
 }
 
 #endif

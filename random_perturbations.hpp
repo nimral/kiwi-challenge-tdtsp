@@ -8,6 +8,7 @@
 #include <atomic>
 #include <array>
 
+// XXX reevaluate
 constexpr std::size_t MAX_PERTURBATIONS{5};
  
 std::atomic<bool> TERMINATE{false};
