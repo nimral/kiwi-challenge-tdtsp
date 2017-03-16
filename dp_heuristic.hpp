@@ -48,20 +48,17 @@ struct PartialTour {
 
       std::vector<cid_t> as_vector(bool forward=true, bool reverse=true) const
       {
-        std::vector<cid_t> tour = forward ?
-            std::vector<cid_t>{k} : std::vector<cid_t>();
-        auto node = prev_ks;
-        while (node) {
-          tour.emplace_back(node->k);
-          node = node->prev_ks;
-        }
-        if (!forward && !tour.empty()) {
-            tour.pop_back();
-        }
-        if (reverse) {
-            std::reverse(tour.begin(), tour.end());
-        }
-        return tour;
+          std::vector<cid_t> tour = forward ?
+              std::vector<cid_t>{k} : std::vector<cid_t>();
+          auto node = prev_ks;
+          while (node) {
+              tour.emplace_back(node->k);
+              node = node->prev_ks;
+          }
+          if (reverse) {
+              std::reverse(tour.begin(), tour.end());
+          }
+          return tour;
       }
     };
 
@@ -327,7 +324,6 @@ void dp_heuristic(const int n,
 
     best_tour = bt_forw;
     best_tour.insert(best_tour.end(), bt_back.begin(), bt_back.end());
-    best_tour.push_back(start);
 }
 
 #endif
