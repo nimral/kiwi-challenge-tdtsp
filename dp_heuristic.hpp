@@ -78,7 +78,7 @@ struct PartialTour {
         tour_back{std::make_shared<PartialTourPath>(k)},
         cost(0)
     {
-        // S.set(k); we do not want to have start in S
+        S.set(k);
     }
 
     cid_t k_forw() const
