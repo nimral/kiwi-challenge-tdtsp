@@ -282,15 +282,12 @@ void dp_heuristic(const int n,
     keeper.add(PartialTour(start), start);
     Keeper new_keeper(H);
 
-    for (cid_t t = 0; t < n; t++) {
+    for (cid_t t = 0; t < n-1; t++) {
         if (directions[t] == FORWARD) {
             for (const auto & pt : keeper.partials) {
                 for (cid_t to = 0; to < n; to++) {
-                    if (t == n-1 && to != pt.k_back()) {
-                        continue;
-                    }
                     cost_t cost = costs[f_steps][pt.k_forw()][to];
-                    if (cost >= 0 && (t == n-1 || !pt.S[to])) {
+                    if (!pt.S[to] && cost >= 0) {
                         new_keeper.add(pt.prolonged(to, cost), to);
                     }
                 }
@@ -299,11 +296,8 @@ void dp_heuristic(const int n,
         } else {
             for (const auto & pt : keeper.partials) {
                 for (cid_t to = 0; to < n; to++) {
-                    if (t == n-1 && to != pt.k_forw()) {
-                        continue;
-                    }
                     cost_t cost = costs[n-b_steps-1][to][pt.k_back()];
-                    if (cost >= 0 && (t == n-1 || !pt.S[to])) {
+                    if (!pt.S[to] && cost >= 0) {
                         new_keeper.add(pt.prolonged(to, cost, false), to);
                     }
                 }
@@ -313,6 +307,21 @@ void dp_heuristic(const int n,
         keeper.clear();
         std::swap(keeper, new_keeper);
     }
+    for (const auto & pt : keeper.partials) {
+        cid_t to;
+        cost_t cost;
+        if (directions[n-1] == FORWARD) {
+            to = pt.k_back();
+            cost = costs[f_steps][pt.k_forw()][to];
+        } else {
+            to = pt.k_forw();
+            cost = costs[n-b_steps-1][to][pt.k_back()];
+        }
+        if (cost >= 0) {
+            new_keeper.add(pt.prolonged(to, cost, directions[n-1] == FORWARD), to);
+        }
+    }
+    std::swap(keeper, new_keeper);
 
     if (keeper.partials.empty()) {
         return;
