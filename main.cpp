@@ -62,6 +62,23 @@ int main()
             best_cost = cost;
             best_idx = i;
         }
+#ifdef DEBUG
+#include <set>
+        std::set<cid_t> S;
+        for (cid_t t = 0; t < n; ++t) {
+            cid_t from = tours[i][t];
+            cid_t to = tours[i][t+1];
+            S.insert(from);
+            if (costs[t][from][to] == NO_ARC) {
+                std::cerr << "NONEXISTENT FLIGHT!" << std::endl;
+                return 1;
+            }
+        }
+        if (S.size() != n) {
+            std::cerr << "NOT A PROPER CYCLE!" << std::endl;
+            return 1;
+        }
+#endif
     }
 
     if (best_cost != std::numeric_limits<cost_t>::max()) {
