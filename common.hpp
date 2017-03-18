@@ -3,7 +3,6 @@
 
 #include<cstdio>
 #include<vector>
-#include<unordered_map>
 #include<set>
 #include<iostream>
 #include<iomanip>
@@ -43,29 +42,43 @@ const std::vector<std::vector<int>> DIRECTIONS = {
 // Class storing city code to index mapping
 class Cities {
 
-    std::unordered_map<std::string, cid_t> code2idx_map;
-    std::unordered_map<cid_t, std::string> idx2code_map;
-    
+    constexpr static std::size_t ABC = 'Z' - 'A' + 1;
+
+    std::vector<int> code2idx_map;
+    std::vector<int> idx2code_map;
+    cid_t last_idx = 0;
+
 public:
-    cid_t code2idx(std::string code)
+    Cities() :
+        code2idx_map(ABC*ABC*ABC, -1),
+        idx2code_map(ABC*ABC*ABC, -1)
+    {}
+
+    cid_t code2idx(std::string s)
     {
-        auto it = code2idx_map.find(code);
-        if (it == code2idx_map.end()) {
-            cid_t id = code2idx_map.size();
-            it = code2idx_map.emplace(code, id).first;
-            idx2code_map[id] = std::move(code);
+        std::size_t code = ((s[0]-'A')*ABC*ABC) + ((s[1]-'A')*ABC) + (s[2]-'A');
+        int idx = code2idx_map[code];
+        if (idx == -1) {
+            idx = last_idx;
+            code2idx_map[code] = idx;
+            idx2code_map[idx] = code;
+            last_idx++;
         }
-        return it->second;
+        return idx;
     }
 
     std::string idx2code(cid_t idx) const {
-        auto it = idx2code_map.find(idx);
-        return it->second;
+        int code = idx2code_map[idx];
+        char str[3];
+        str[0] = 'A' + (code / (ABC*ABC));
+        str[1] = 'A' + ((code % (ABC*ABC)) / ABC);
+        str[2] = 'A' + ((code % (ABC*ABC)) % ABC);
+        return std::string(str, 3);
     }
 
     unsigned int size()
     {
-        return code2idx_map.size();
+        return last_idx;
     }
 };
 
