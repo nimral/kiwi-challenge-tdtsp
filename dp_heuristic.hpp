@@ -4,6 +4,14 @@
 #include<bitset>
 #include<unordered_map>
 #include<memory>
+#include<utility>
+
+#include "random_perturbations.hpp"
+
+// anything above 5 is OK
+constexpr std::size_t CHUNK_SEARCH_SIZE = 16;
+constexpr std::size_t LOCAL_SEARCH_MAX_ITERS = 10000;
+constexpr std::size_t LOCAL_SEARCH_MAX_TOURS = 50;
 
 // http://stackoverflow.com/a/7222201/4786205
 template <class T>
@@ -46,10 +54,9 @@ struct PartialTour {
           prev_ks{std::move(ptr)}
       { }
 
-      std::vector<cid_t> as_vector(bool forward=true, bool reverse=true) const
+      std::vector<cid_t> as_vector(bool reverse=true) const
       {
-          std::vector<cid_t> tour = forward ?
-              std::vector<cid_t>{k} : std::vector<cid_t>();
+          std::vector<cid_t> tour{k};
           auto node = prev_ks;
           while (node) {
               tour.emplace_back(node->k);
@@ -107,6 +114,22 @@ struct PartialTour {
         return pt;
     }
 
+    /**
+     * Join the backward and forward partial tours and return
+     * the resulting vector together with the index of the
+     * point where the merge took place.
+     */
+    std::pair<std::vector<cid_t>, std::size_t> extract_tour() const
+    {
+        auto tf = tour_forw->as_vector();
+        auto tb = tour_back->as_vector(false);
+        // the starting vertex is in both the forward
+        // and backward partial tours; remove it once
+        tb.pop_back();
+        const std::size_t joining_point = tb.size();
+        tb.insert(tb.end(), tf.begin(), tf.end());
+        return std::make_pair<>(tb, joining_point);
+    }
 };
 
 
@@ -140,7 +163,7 @@ struct Keeper {
     Keeper(unsigned int H) : H(H)
     {
         partials.reserve(H);
-        k_S2idx.reserve(MAX_N);
+        k_S2idx.reserve(H);
         heap.reserve(H+1);  // 1-indexing for simple child access (i*2, i*2+1)
         heap.push_back(HeapElem{0, 0});
     }
@@ -269,12 +292,71 @@ struct Keeper {
 };
 
 
+PartialTour reconstruct_pt(const std::vector<cid_t> & tour,
+                           const cost_t cost,
+                           const std::size_t joining_point)
+{
+    PartialTour pt(tour[joining_point]);
+    for (std::size_t i = joining_point+1; i < tour.size(); ++i) {
+        pt = pt.prolonged(tour[i], 0);
+    }
+    for (int i = joining_point-1; i >= 0; --i) {
+        pt = pt.prolonged(tour[i], 0, false);
+    }
+    pt.cost = cost;
+    return pt;
+}
+
+
+void local_search(const std::size_t n,
+                  const costs_table_t & costs,
+                  Keeper & keeper)
+{
+    if (keeper.partials.empty()) {
+        return;
+    }
+    std::size_t cnt{};
+    for (std::size_t i = keeper.heap.size()-1;
+         // if we limit our search in (approx) this range
+         // we don't need to rebuild the heap
+         i > keeper.heap.size()/2 + 3 && cnt < LOCAL_SEARCH_MAX_TOURS;
+         --i) {
+
+        auto idx = keeper.heap[i].idx;
+
+        auto pt = keeper.partials[idx];
+
+        auto extracted_tour = pt.extract_tour();
+        auto tour = extracted_tour.first;
+        auto joining_point = extracted_tour.second;
+
+        const std::size_t offset = n - joining_point;
+        cost_t best_cost;
+        random_perturbations(tour,
+                             joining_point,
+                             offset,
+                             costs,
+                             best_cost,
+                             LOCAL_SEARCH_MAX_ITERS);
+
+        auto reconstructed_pt =
+            reconstruct_pt(tour, best_cost, joining_point);
+
+        keeper.partials[idx] = reconstructed_pt;
+        keeper.heap[i].cost = best_cost;
+        cnt++;
+    }
+}
+
+
 void dp_heuristic(const int n,
                   const cid_t start,
                   const costs_table_t & costs,
                   const unsigned int H,
                   const std::vector<int> & directions,
-                  std::vector<cid_t> & best_tour)
+                  std::vector<cid_t> & best_tour,
+                  output_t & output_arcs,
+                  cost_t & final_cost)
 {
     std::size_t f_steps{};
     std::size_t b_steps{};
@@ -304,6 +386,9 @@ void dp_heuristic(const int n,
             }
             b_steps++;
         }
+        if (t % CHUNK_SEARCH_SIZE == CHUNK_SEARCH_SIZE - 1) {
+            local_search(n, costs, new_keeper);
+        }
         keeper.clear();
         std::swap(keeper, new_keeper);
     }
@@ -318,7 +403,8 @@ void dp_heuristic(const int n,
             cost = costs[n-b_steps-1][to][pt.k_back()];
         }
         if (cost >= 0) {
-            new_keeper.add(pt.prolonged(to, cost, directions[n-1] == FORWARD), to);
+            new_keeper.add(
+                pt.prolonged(to, cost, directions[n-1] == FORWARD), to);
         }
     }
     std::swap(keeper, new_keeper);
@@ -328,11 +414,37 @@ void dp_heuristic(const int n,
     }
 
     // there can be only one partial tour for S = {0 .. n-1}, k = start
-    auto bt_forw = keeper.partials[0].tour_forw->as_vector();
-    auto bt_back = keeper.partials[0].tour_back->as_vector(false,false);
+    auto extracted_tour = keeper.partials[0].extract_tour();
+    best_tour = extracted_tour.first;
+    auto joining_point = extracted_tour.second;
+    const std::size_t offset = n - joining_point;
+    random_perturbations(best_tour, joining_point, offset, costs, final_cost);
 
-    best_tour = bt_forw;
-    best_tour.insert(best_tour.end(), bt_back.begin(), bt_back.end());
+#ifdef DEBUG
+#include <set>
+    {
+        std::set<cid_t> S;
+        for (cid_t t = 0; t < n; ++t) {
+            cid_t from = best_tour[t];
+            cid_t to = best_tour[t+1];
+            S.insert(from);
+            if (costs[offset+t][from][to] == NO_ARC) {
+                std::cerr << "NONEXISTENT FLIGHT!" << std::endl;
+                throw 1;
+            }
+        }
+        if (S.size() != (unsigned int) n) {
+            std::cerr << "NOT A PROPER CYCLE!" << std::endl;
+            throw 1;
+        }
+    }
+#endif
+
+    for (cid_t t = 0; t < n; ++t) {
+        cid_t from = best_tour[t];
+        cid_t to = best_tour[t+1];
+        output_arcs[t] = IOArc(from, to, t, costs[offset+t][from][to]);
+    }
 }
 
 #endif

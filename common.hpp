@@ -110,29 +110,23 @@ void init_from_input(cid_t & start, Cities & cities, costs_table_t & costs)
     int n = cities.size();
 
     // costs[day][from][to] -> cost_t 
+    // costs[n..2*n-1] are just a copy of costs[0..n-1]
+    // somehow it makes the indexing much easier later on
     costs = costs_table_t(
-        n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, NO_ARC))
+        2*n, std::vector<std::vector<cost_t>>(n, std::vector<cost_t>(n, NO_ARC))
     );
 
     for (const auto & a : input_arcs) {
-        cost_t & cost = costs[a.day][a.from][a.to];
-        if (cost == NO_ARC || cost > a.price) {
+        cost_t & cost1 = costs[a.day][a.from][a.to];
+        cost_t & cost2 = costs[n+a.day][a.from][a.to];
+        if (cost1 == NO_ARC || cost1 > a.price) {
             // visits to start allowed only in the last day
             if (a.day == n-1 || a.to != start) {
-                cost = a.price;
+                cost1 = a.price;
+                cost2 = a.price;
             }
         }
     }
-}
-
-
-cost_t final_cost(const output_t & arcs)
-{
-    cost_t cost = 0;
-    for (const auto & arc : arcs) {
-        cost += arc.price;
-    }
-    return cost;
 }
 
 
