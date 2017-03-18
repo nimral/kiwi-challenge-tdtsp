@@ -14,6 +14,8 @@ constexpr std::size_t MAX_PERTURBATIONS{5};
 constexpr std::size_t MAX_ITERS{std::numeric_limits<std::size_t>::max()};
  
 std::atomic<bool> TERMINATE{false};
+static thread_local std::random_device rd;
+static thread_local std::mt19937 g(rd());
 
 void random_perturbations(std::vector<cid_t> & V,
                           const std::size_t joining_point,
@@ -27,8 +29,6 @@ void random_perturbations(std::vector<cid_t> & V,
         best_cost += costs[offset+t][V[t]][V[t+1]];
     }
 
-    std::random_device rd;
-    std::mt19937 g(rd());
     std::uniform_int_distribution<> dis_days(
         1,
         (joining_point == 0 || joining_point == V.size()-1) ?
