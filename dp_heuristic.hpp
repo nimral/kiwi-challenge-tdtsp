@@ -272,7 +272,8 @@ struct Keeper {
 void dp_heuristic(const int n,
                   const cid_t start,
                   const costs_table_t & costs,
-                  const unsigned int H,
+                  unsigned int H,
+                  std::chrono::steady_clock::time_point end_time,
                   const std::vector<int> & directions,
                   std::vector<cid_t> & best_tour)
 {
@@ -306,6 +307,19 @@ void dp_heuristic(const int n,
         }
         keeper.clear();
         std::swap(keeper, new_keeper);
+
+        // if we are running out of time, hurry up
+        auto time_remaining = end_time - std::chrono::steady_clock::now();
+        if (time_remaining < std::chrono::milliseconds(100)) {
+            H = 1;
+            new_keeper = Keeper(H);
+        } else if (time_remaining < std::chrono::milliseconds(500)) {
+            H = 50;
+            new_keeper = Keeper(H);
+        } else if (time_remaining < std::chrono::milliseconds(1000)) {
+            H = 200;
+            new_keeper = Keeper(H);
+        }
     }
     for (const auto & pt : keeper.partials) {
         cid_t to;
@@ -333,6 +347,7 @@ void dp_heuristic(const int n,
 
     best_tour = bt_forw;
     best_tour.insert(best_tour.end(), bt_back.begin(), bt_back.end());
+
 }
 
 #endif

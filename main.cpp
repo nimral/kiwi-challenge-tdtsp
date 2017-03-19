@@ -23,7 +23,7 @@ int main()
     // XXX reevaluate
     unsigned int H;
     if (n <= 20) {
-        H = 180000;  // u-pl0, n = 30, H = 60000: 18 s
+        H = 175000;
     } else if (n <= 30) {
         H = 100000;
     } else if (n <= 50) {
@@ -43,7 +43,7 @@ int main()
     std::vector<std::vector<cid_t>> tours(CPU_COUNT);
 #pragma omp parallel for
     for (std::size_t i = 0; i < CPU_COUNT; ++i) {
-        dp_heuristic(n, start, costs, H, DIRECTIONS[i], tours[i]);
+        dp_heuristic(n, start, costs, H, end_time, DIRECTIONS[i], tours[i]);
     }
 
     std::vector<std::thread> threads;
