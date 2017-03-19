@@ -10,7 +10,7 @@
 int main()
 {
     auto start_time = std::chrono::steady_clock::now();
-    auto end_time = start_time + std::chrono::milliseconds(1000 * 30 - 200);
+    auto end_time = start_time + std::chrono::milliseconds(30 * 1000 - 200);
     std::ios::sync_with_stdio(false);
 
     id_t n;
@@ -22,10 +22,22 @@ int main()
 
     // XXX reevaluate
     unsigned int H;
-    if (n <= 30) {
-        H = 140000;  // u-pl0, n = 30, H = 60000: 18 s
+    if (n <= 20) {
+        H = 180000;  // u-pl0, n = 30, H = 60000: 18 s
+    } else if (n <= 30) {
+        H = 100000;
+    } else if (n <= 50) {
+        H = 50000;
+    } else if (n <= 70) {
+        H = 28000;
+    } else if (n <= 100) {
+        H = 15000;
+    } else if (n <= 200) {
+        H = 4200;
+    } else if (n <= 300) {
+        H = 1900;
     } else {
-        H = 80000000 / (n * n);
+        H = 1000;
     }
 
     std::vector<std::vector<cid_t>> tours(CPU_COUNT);
